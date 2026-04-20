@@ -134,11 +134,21 @@ func (s *InboundService) GetClients(inbound *model.Inbound) ([]model.Client, err
 		return nil, fmt.Errorf("setting is null")
 	}
 
-	clients := settings["clients"]
+	clients := settings[clientsKey(inbound.Protocol)]
 	if clients == nil {
 		return nil, nil
 	}
 	return clients, nil
+}
+
+// clientsKey returns the settings JSON key that stores the client array for a
+// given protocol. Hysteria uses "users" (matching Xray-core's proxy/hysteria
+// ServerConfig); all other supported protocols use "clients".
+func clientsKey(protocol model.Protocol) string {
+	if protocol == model.Hysteria {
+		return "users"
+	}
+	return "clients"
 }
 
 func (s *InboundService) getAllEmails() ([]string, error) {
@@ -570,7 +580,7 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 		return false, err
 	}
 
-	interfaceClients := settings["clients"].([]any)
+	interfaceClients := settings[clientsKey(data.Protocol)].([]any)
 	// Add timestamps for new clients being appended
 	nowTs := time.Now().Unix() * 1000
 	for i := range interfaceClients {
@@ -606,6 +616,10 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 			if client.Email == "" {
 				return false, common.NewError("empty client ID")
 			}
+		case "hysteria":
+			if client.Auth == "" {
+				return false, common.NewError("empty client ID")
+			}
 		default:
 			if client.ID == "" {
 				return false, common.NewError("empty client ID")
@@ -619,10 +633,11 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 		return false, err
 	}
 
-	oldClients := oldSettings["clients"].([]any)
+	oldKey := clientsKey(oldInbound.Protocol)
+	oldClients := oldSettings[oldKey].([]any)
 	oldClients = append(oldClients, interfaceClients...)
 
-	oldSettings["clients"] = oldClients
+	oldSettings[oldKey] = oldClients
 
 	newSettings, err := json.MarshalIndent(oldSettings, "", "  ")
 	if err != nil {
@@ -658,6 +673,7 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 					"security": client.Security,
 					"flow":     client.Flow,
 					"password": client.Password,
+					"auth":     client.Auth,
 					"cipher":   cipher,
 				})
 				if err1 == nil {
@@ -696,8 +712,11 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 	if oldInbound.Protocol == "shadowsocks" {
 		client_key = "email"
 	}
+	if oldInbound.Protocol == "hysteria" {
+		client_key = "email"
+	}
 
-	interfaceClients := settings["clients"].([]any)
+	interfaceClients := settings[clientsKey(oldInbound.Protocol)].([]any)
 	var newClients []any
 	needApiDel := false
 	for _, client := range interfaceClients {
@@ -715,7 +734,7 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 		return false, common.NewError("no client remained in Inbound")
 	}
 
-	settings["clients"] = newClients
+	settings[clientsKey(oldInbound.Protocol)] = newClients
 	newSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return false, err
@@ -777,7 +796,7 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 		return false, err
 	}
 
-	interfaceClients := settings["clients"].([]any)
+	interfaceClients := settings[clientsKey(data.Protocol)].([]any)
 
 	oldInbound, err := s.GetInbound(data.Id)
 	if err != nil {
@@ -799,6 +818,9 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 			oldClientId = oldClient.Password
 			newClientId = clients[0].Password
 		case "shadowsocks":
+			oldClientId = oldClient.Email
+			newClientId = clients[0].Email
+		case "hysteria":
 			oldClientId = oldClient.Email
 			newClientId = clients[0].Email
 		default:
@@ -832,7 +854,7 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 	if err != nil {
 		return false, err
 	}
-	settingsClients := oldSettings["clients"].([]any)
+	settingsClients := oldSettings[clientsKey(oldInbound.Protocol)].([]any)
 	// Preserve created_at and set updated_at for the replacing client
 	var preservedCreated any
 	if clientIndex >= 0 && clientIndex < len(settingsClients) {
@@ -853,7 +875,7 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 		}
 	}
 	settingsClients[clientIndex] = interfaceClients[0]
-	oldSettings["clients"] = settingsClients
+	oldSettings[clientsKey(oldInbound.Protocol)] = settingsClients
 
 	newSettings, err := json.MarshalIndent(oldSettings, "", "  ")
 	if err != nil {
@@ -922,6 +944,7 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 				"security": clients[0].Security,
 				"flow":     clients[0].Flow,
 				"password": clients[0].Password,
+				"auth":     clients[0].Auth,
 				"cipher":   cipher,
 			})
 			if err1 == nil {
@@ -1157,7 +1180,7 @@ func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
 	for inbound_index := range inbounds {
 		settings := map[string]any{}
 		json.Unmarshal([]byte(inbounds[inbound_index].Settings), &settings)
-		clients := settings["clients"].([]any)
+		clients := settings[clientsKey(inbounds[inbound_index].Protocol)].([]any)
 		for client_index := range clients {
 			c := clients[client_index].(map[string]any)
 			for traffic_index, traffic := range traffics {
@@ -1188,7 +1211,7 @@ func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
 				}
 			}
 		}
-		settings["clients"] = clients
+		settings[clientsKey(inbounds[inbound_index].Protocol)] = clients
 		newSettings, err := json.MarshalIndent(settings, "", "  ")
 		if err != nil {
 			return false, 0, err
@@ -1457,7 +1480,7 @@ func (s *InboundService) SetClientTelegramUserID(trafficId int, tgId int64) (boo
 	if err != nil {
 		return false, err
 	}
-	clients := settings["clients"].([]any)
+	clients := settings[clientsKey(inbound.Protocol)].([]any)
 	var newClients []any
 	for client_index := range clients {
 		c := clients[client_index].(map[string]any)
@@ -1467,7 +1490,7 @@ func (s *InboundService) SetClientTelegramUserID(trafficId int, tgId int64) (boo
 			newClients = append(newClients, any(c))
 		}
 	}
-	settings["clients"] = newClients
+	settings[clientsKey(inbound.Protocol)] = newClients
 	modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return false, err
@@ -1527,6 +1550,8 @@ func (s *InboundService) ToggleClientEnableByEmail(clientEmail string) (bool, bo
 				clientId = oldClient.Password
 			case "shadowsocks":
 				clientId = oldClient.Email
+			case "hysteria":
+				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
 			}
@@ -1544,7 +1569,7 @@ func (s *InboundService) ToggleClientEnableByEmail(clientEmail string) (bool, bo
 	if err != nil {
 		return false, false, err
 	}
-	clients := settings["clients"].([]any)
+	clients := settings[clientsKey(inbound.Protocol)].([]any)
 	var newClients []any
 	for client_index := range clients {
 		c := clients[client_index].(map[string]any)
@@ -1554,7 +1579,7 @@ func (s *InboundService) ToggleClientEnableByEmail(clientEmail string) (bool, bo
 			newClients = append(newClients, any(c))
 		}
 	}
-	settings["clients"] = newClients
+	settings[clientsKey(inbound.Protocol)] = newClients
 	modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return false, false, err
@@ -1624,7 +1649,7 @@ func (s *InboundService) ResetClientIpLimitByEmail(clientEmail string, count int
 	if err != nil {
 		return false, err
 	}
-	clients := settings["clients"].([]any)
+	clients := settings[clientsKey(inbound.Protocol)].([]any)
 	var newClients []any
 	for client_index := range clients {
 		c := clients[client_index].(map[string]any)
@@ -1634,7 +1659,7 @@ func (s *InboundService) ResetClientIpLimitByEmail(clientEmail string, count int
 			newClients = append(newClients, any(c))
 		}
 	}
-	settings["clients"] = newClients
+	settings[clientsKey(inbound.Protocol)] = newClients
 	modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return false, err
@@ -1683,7 +1708,7 @@ func (s *InboundService) ResetClientExpiryTimeByEmail(clientEmail string, expiry
 	if err != nil {
 		return false, err
 	}
-	clients := settings["clients"].([]any)
+	clients := settings[clientsKey(inbound.Protocol)].([]any)
 	var newClients []any
 	for client_index := range clients {
 		c := clients[client_index].(map[string]any)
@@ -1693,7 +1718,7 @@ func (s *InboundService) ResetClientExpiryTimeByEmail(clientEmail string, expiry
 			newClients = append(newClients, any(c))
 		}
 	}
-	settings["clients"] = newClients
+	settings[clientsKey(inbound.Protocol)] = newClients
 	modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return false, err
@@ -1745,7 +1770,7 @@ func (s *InboundService) ResetClientTrafficLimitByEmail(clientEmail string, tota
 	if err != nil {
 		return false, err
 	}
-	clients := settings["clients"].([]any)
+	clients := settings[clientsKey(inbound.Protocol)].([]any)
 	var newClients []any
 	for client_index := range clients {
 		c := clients[client_index].(map[string]any)
@@ -1755,7 +1780,7 @@ func (s *InboundService) ResetClientTrafficLimitByEmail(clientEmail string, tota
 			newClients = append(newClients, any(c))
 		}
 	}
-	settings["clients"] = newClients
+	settings[clientsKey(inbound.Protocol)] = newClients
 	modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return false, err
@@ -2437,7 +2462,7 @@ func (s *InboundService) DelInboundClientByEmail(inboundId int, email string) (b
 		return false, err
 	}
 
-	interfaceClients, ok := settings["clients"].([]any)
+	interfaceClients, ok := settings[clientsKey(oldInbound.Protocol)].([]any)
 	if !ok {
 		return false, common.NewError("invalid clients format in inbound settings")
 	}
@@ -2467,7 +2492,7 @@ func (s *InboundService) DelInboundClientByEmail(inboundId int, email string) (b
 		return false, common.NewError("no client remained in Inbound")
 	}
 
-	settings["clients"] = newClients
+	settings[clientsKey(oldInbound.Protocol)] = newClients
 	newSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return false, err

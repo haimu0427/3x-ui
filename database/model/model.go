@@ -122,6 +122,7 @@ type Client struct {
 	ID         string `json:"id"`                           // Unique client identifier
 	Security   string `json:"security"`                     // Security method (e.g., "auto", "aes-128-gcm")
 	Password   string `json:"password"`                     // Client password
+	Auth       string `json:"auth"`                         // Hysteria auth password
 	Flow       string `json:"flow"`                         // Flow control (XTLS)
 	Email      string `json:"email"`                        // Client email identifier
 	LimitIP    int    `json:"limitIp"`                      // IP limit for this client
