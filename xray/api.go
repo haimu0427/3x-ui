@@ -19,6 +19,8 @@ import (
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/infra/conf"
+	_ "github.com/xtls/xray-core/proxy/hysteria"
+	hysteriaAccount "github.com/xtls/xray-core/proxy/hysteria/account"
 	"github.com/xtls/xray-core/proxy/shadowsocks"
 	"github.com/xtls/xray-core/proxy/shadowsocks_2022"
 	"github.com/xtls/xray-core/proxy/trojan"
@@ -140,6 +142,10 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 	case "trojan":
 		account = serial.ToTypedMessage(&trojan.Account{
 			Password: user["password"].(string),
+		})
+	case "hysteria":
+		account = serial.ToTypedMessage(&hysteriaAccount.Account{
+			Auth: user["auth"].(string),
 		})
 	case "shadowsocks":
 		var ssCipherType shadowsocks.CipherType
