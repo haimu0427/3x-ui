@@ -158,6 +158,12 @@ func (s *InboundService) getAllEmails() ([]string, error) {
 		SELECT JSON_EXTRACT(client.value, '$.email')
 		FROM inbounds,
 			JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.clients')) AS client
+		WHERE JSON_EXTRACT(inbounds.settings, '$.clients') IS NOT NULL
+		UNION ALL
+		SELECT JSON_EXTRACT(u.value, '$.email')
+		FROM inbounds,
+			JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.users')) AS u
+		WHERE JSON_EXTRACT(inbounds.settings, '$.users') IS NOT NULL
 		`).Scan(&emails).Error
 	if err != nil {
 		return nil, err
@@ -278,6 +284,10 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 			}
 		case "shadowsocks":
 			if client.Email == "" {
+				return inbound, false, common.NewError("empty client ID")
+			}
+		case "hysteria":
+			if client.Auth == "" {
 				return inbound, false, common.NewError("empty client ID")
 			}
 		default:
@@ -1464,6 +1474,8 @@ func (s *InboundService) SetClientTelegramUserID(trafficId int, tgId int64) (boo
 				clientId = oldClient.Password
 			case "shadowsocks":
 				clientId = oldClient.Email
+			case "hysteria":
+				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
 			}
@@ -1633,6 +1645,8 @@ func (s *InboundService) ResetClientIpLimitByEmail(clientEmail string, count int
 				clientId = oldClient.Password
 			case "shadowsocks":
 				clientId = oldClient.Email
+			case "hysteria":
+				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
 			}
@@ -1691,6 +1705,8 @@ func (s *InboundService) ResetClientExpiryTimeByEmail(clientEmail string, expiry
 			case "trojan":
 				clientId = oldClient.Password
 			case "shadowsocks":
+				clientId = oldClient.Email
+			case "hysteria":
 				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
@@ -1753,6 +1769,8 @@ func (s *InboundService) ResetClientTrafficLimitByEmail(clientEmail string, tota
 			case "trojan":
 				clientId = oldClient.Password
 			case "shadowsocks":
+				clientId = oldClient.Email
+			case "hysteria":
 				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
