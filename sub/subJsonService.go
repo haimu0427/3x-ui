@@ -194,6 +194,8 @@ func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, 
 			newOutbounds = append(newOutbounds, s.genVless(inbound, streamSettings, client))
 		case "trojan", "shadowsocks":
 			newOutbounds = append(newOutbounds, s.genServer(inbound, streamSettings, client))
+		case "hysteria":
+			newOutbounds = append(newOutbounds, s.genHysteria(inbound, streamSettings, client))
 		}
 
 		newOutbounds = append(newOutbounds, s.defaultOutbounds...)
@@ -372,6 +374,33 @@ func (s *SubJsonService) genServer(inbound *model.Inbound, streamSettings json_u
 	if s.mux != "" {
 		outbound.Mux = json_util.RawMessage(s.mux)
 	}
+	outbound.StreamSettings = streamSettings
+	outbound.Settings = map[string]any{
+		"servers": serverData,
+	}
+
+	result, _ := json.MarshalIndent(outbound, "", "  ")
+	return result
+}
+
+// genHysteria emits a Hysteria2 outbound block for subscription JSON.
+// Matches Xray-core's `proxy/hysteria` client schema: settings.servers is
+// an array of {address, port, auth}, and streamSettings keeps the inbound's
+// hysteria/quic parameters so the client negotiates the same transport.
+func (s *SubJsonService) genHysteria(inbound *model.Inbound, streamSettings json_util.RawMessage, client model.Client) json_util.RawMessage {
+	outbound := Outbound{}
+
+	serverData := []map[string]any{
+		{
+			"address": inbound.Listen,
+			"port":    inbound.Port,
+			"auth":    client.Auth,
+			"level":   0,
+		},
+	}
+
+	outbound.Protocol = string(inbound.Protocol)
+	outbound.Tag = "proxy"
 	outbound.StreamSettings = streamSettings
 	outbound.Settings = map[string]any{
 		"servers": serverData,
