@@ -1,0 +1,111 @@
+{{define "form/hysteria"}}
+<!-- client list (single client view when adding, list view when editing) -->
+<a-collapse activeKey="0" v-for="(client, index) in inbound.settings.hysterias.slice(0,1)" v-if="!isEdit">
+  <a-collapse-panel header='{{ i18n "pages.inbounds.client" }}'>
+    {{template "form/client"}}
+  </a-collapse-panel>
+</a-collapse>
+<a-collapse v-else>
+  <a-collapse-panel :header="'{{ i18n "pages.client.clientCount"}} : ' + inbound.settings.hysterias.length">
+    <table width="100%">
+      <tr class="client-table-header">
+        <th>{{ i18n "pages.inbounds.email" }}</th>
+        <th>{{ i18n "pages.inbounds.hysteria.auth" }}</th>
+      </tr>
+      <tr v-for="(client, index) in inbound.settings.hysterias" :class="index % 2 == 1 ? 'client-table-odd-row' : ''">
+        <td>[[ client.email ]]</td>
+        <td>[[ client.auth ]]</td>
+      </tr>
+    </table>
+  </a-collapse-panel>
+</a-collapse>
+
+<!-- QUIC + Hysteria transport settings -->
+<a-form :colon="false" :label-col="{ md: {span:8} }" :wrapper-col="{ md: {span:14} }">
+  <a-divider>Hysteria</a-divider>
+  <a-form-item label='{{ i18n "pages.inbounds.hysteria.udpIdleTimeout" }}'>
+    <a-input-number v-model.number="inbound.settings.hysteriaSettings.udpIdleTimeout" :min="1"></a-input-number>
+  </a-form-item>
+
+  <a-divider>{{ i18n "pages.inbounds.hysteria.masquerade" }}</a-divider>
+  <a-form-item label='{{ i18n "pages.inbounds.hysteria.masqType" }}'>
+    <a-select v-model="inbound.settings.hysteriaSettings.masquerade.type">
+      <a-select-option value="404">404</a-select-option>
+      <a-select-option value="file">file</a-select-option>
+      <a-select-option value="proxy">proxy</a-select-option>
+      <a-select-option value="string">string</a-select-option>
+    </a-select>
+  </a-form-item>
+  <a-form-item v-if="inbound.settings.hysteriaSettings.masquerade.type === 'proxy'"
+    label='{{ i18n "pages.inbounds.hysteria.masqUrl" }}'>
+    <a-input v-model.trim="inbound.settings.hysteriaSettings.masquerade.url"></a-input>
+  </a-form-item>
+  <a-form-item v-if="inbound.settings.hysteriaSettings.masquerade.type === 'file'"
+    label='Dir'>
+    <a-input v-model.trim="inbound.settings.hysteriaSettings.masquerade.dir"></a-input>
+  </a-form-item>
+  <a-form-item v-if="inbound.settings.hysteriaSettings.masquerade.type === 'string'"
+    label='{{ i18n "pages.inbounds.hysteria.masqContent" }}'>
+    <a-input type="textarea" :rows="3"
+      v-model.trim="inbound.settings.hysteriaSettings.masquerade.content"></a-input>
+  </a-form-item>
+  <a-form-item v-if="inbound.settings.hysteriaSettings.masquerade.type !== '404'"
+    label='{{ i18n "pages.inbounds.hysteria.masqStatusCode" }}'>
+    <a-input-number v-model.number="inbound.settings.hysteriaSettings.masquerade.statusCode" :min="0" :max="599"></a-input-number>
+  </a-form-item>
+  <a-form-item v-if="inbound.settings.hysteriaSettings.masquerade.type === 'proxy'"
+    label='rewriteHost'>
+    <a-switch v-model="inbound.settings.hysteriaSettings.masquerade.rewriteHost"></a-switch>
+  </a-form-item>
+  <a-form-item v-if="inbound.settings.hysteriaSettings.masquerade.type === 'proxy'"
+    label='insecure'>
+    <a-switch v-model="inbound.settings.hysteriaSettings.masquerade.insecure"></a-switch>
+  </a-form-item>
+
+  <a-divider>QUIC</a-divider>
+  <a-form-item label='{{ i18n "pages.inbounds.hysteria.congestion" }}'>
+    <a-select v-model="inbound.settings.quicParams.congestion">
+      <a-select-option value="bbr">BBR</a-select-option>
+      <a-select-option value="reno">Reno</a-select-option>
+      <a-select-option value="brutal">Brutal</a-select-option>
+      <a-select-option value="force-brutal">Force-Brutal</a-select-option>
+    </a-select>
+  </a-form-item>
+  <a-form-item
+    v-if="inbound.settings.quicParams.congestion === 'brutal' || inbound.settings.quicParams.congestion === 'force-brutal'"
+    label='{{ i18n "pages.inbounds.hysteria.brutalUp" }}'>
+    <a-input-number v-model.number="inbound.settings.quicParams.brutalUp" :min="0"></a-input-number>
+  </a-form-item>
+  <a-form-item
+    v-if="inbound.settings.quicParams.congestion === 'brutal' || inbound.settings.quicParams.congestion === 'force-brutal'"
+    label='{{ i18n "pages.inbounds.hysteria.brutalDown" }}'>
+    <a-input-number v-model.number="inbound.settings.quicParams.brutalDown" :min="0"></a-input-number>
+  </a-form-item>
+
+  <a-collapse>
+    <a-collapse-panel header='Advanced QUIC tuning'>
+      <a-form-item label='initStreamReceiveWindow'>
+        <a-input-number v-model.number="inbound.settings.quicParams.initStreamReceiveWindow" :min="0"></a-input-number>
+      </a-form-item>
+      <a-form-item label='maxStreamReceiveWindow'>
+        <a-input-number v-model.number="inbound.settings.quicParams.maxStreamReceiveWindow" :min="0"></a-input-number>
+      </a-form-item>
+      <a-form-item label='initConnReceiveWindow'>
+        <a-input-number v-model.number="inbound.settings.quicParams.initConnReceiveWindow" :min="0"></a-input-number>
+      </a-form-item>
+      <a-form-item label='maxConnReceiveWindow'>
+        <a-input-number v-model.number="inbound.settings.quicParams.maxConnReceiveWindow" :min="0"></a-input-number>
+      </a-form-item>
+      <a-form-item label='maxIdleTimeout'>
+        <a-input-number v-model.number="inbound.settings.quicParams.maxIdleTimeout" :min="1"></a-input-number>
+      </a-form-item>
+      <a-form-item label='maxIncomingStreams'>
+        <a-input-number v-model.number="inbound.settings.quicParams.maxIncomingStreams" :min="1"></a-input-number>
+      </a-form-item>
+      <a-form-item label='disablePathMtuDiscovery'>
+        <a-switch v-model="inbound.settings.quicParams.disablePathMtuDiscovery"></a-switch>
+      </a-form-item>
+    </a-collapse-panel>
+  </a-collapse>
+</a-form>
+{{end}}
