@@ -314,6 +314,18 @@
 "monthly" = "每月"
 "hourly" = "每小时"
 
+[pages.inbounds.hysteria]
+"auth" = "认证密码"
+"udpIdleTimeout" = "UDP 空闲超时 (秒)"
+"masquerade" = "伪装"
+"masqType" = "伪装类型"
+"masqUrl" = "伪装 URL"
+"masqContent" = "伪装内容"
+"masqStatusCode" = "状态码"
+"congestion" = "拥塞控制"
+"brutalUp" = "Brutal 上行 (字节/秒)"
+"brutalDown" = "Brutal 下行 (字节/秒)"
+
 [pages.inbounds.toasts]
 "obtain" = "获取"
 "updateSuccess" = "更新成功"

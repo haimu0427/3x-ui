@@ -314,6 +314,18 @@
 "monthly" = "Monthly"
 "hourly" = "Hourly"
 
+[pages.inbounds.hysteria]
+"auth" = "Auth Password"
+"udpIdleTimeout" = "UDP Idle Timeout (s)"
+"masquerade" = "Masquerade"
+"masqType" = "Masquerade Type"
+"masqUrl" = "Masquerade URL"
+"masqContent" = "Masquerade Content"
+"masqStatusCode" = "Status Code"
+"congestion" = "Congestion Control"
+"brutalUp" = "Brutal Upload (bytes/s)"
+"brutalDown" = "Brutal Download (bytes/s)"
+
 [pages.inbounds.toasts]
 "obtain" = "Obtain"
 "updateSuccess" = "The update was successful."
