@@ -958,6 +958,30 @@ func (s *SubService) genHysteriaLink(inbound *model.Inbound, email string) strin
 		protocol = "hysteria"
 	}
 
+	externalProxies, _ := stream["externalProxy"].([]interface{})
+
+	if len(externalProxies) > 0 {
+		links := ""
+		for index, externalProxy := range externalProxies {
+			ep, _ := externalProxy.(map[string]interface{})
+			dest, _ := ep["dest"].(string)
+			epPort := int(ep["port"].(float64))
+			link := fmt.Sprintf("%s://%s@%s:%d", protocol, auth, dest, epPort)
+			url, _ := url.Parse(link)
+			q := url.Query()
+			for k, v := range params {
+				q.Add(k, v)
+			}
+			url.RawQuery = q.Encode()
+			url.Fragment = s.genRemark(inbound, email, ep["remark"].(string))
+			if index > 0 {
+				links += "\n"
+			}
+			links += url.String()
+		}
+		return links
+	}
+
 	link := fmt.Sprintf("%s://%s@%s:%d", protocol, auth, address, port)
 	url, _ := url.Parse(link)
 	q := url.Query()
