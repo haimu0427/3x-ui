@@ -159,6 +159,13 @@ func (s *SubClashService) getProxies(inbound *model.Inbound, client model.Client
 }
 
 func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client, stream map[string]any, extraRemark string) map[string]any {
+	// Hysteria uses a separate transport (QUIC + masquerade + finalmask.quicParams)
+	// that applyTransport / applySecurity don't cover. Route it to a dedicated
+	// builder before the generic TCP-network dispatch below.
+	if inbound.Protocol == model.Hysteria {
+		return s.buildHysteriaProxy(inbound, client, stream, extraRemark)
+	}
+
 	proxy := map[string]any{
 		"name":   s.SubService.genRemark(inbound, client.Email, extraRemark),
 		"server": inbound.Listen,
@@ -217,6 +224,82 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 	security, _ := stream["security"].(string)
 	if !s.applySecurity(proxy, security, stream) {
 		return nil
+	}
+
+	return proxy
+}
+
+// buildHysteriaProxy emits a single Mihomo hysteria2 proxy block.
+// Reads from stream directly (not the prune helpers) so that finalmask
+// (UDP masks for salamander obfs + QUIC params for brutal bandwidth),
+// TLS fields, and settings.version are all preserved on the subscription
+// side. External proxy fanout is handled by the caller in getProxies.
+func (s *SubClashService) buildHysteriaProxy(inbound *model.Inbound, client model.Client, stream map[string]any, extraRemark string) map[string]any {
+	proxyType := "hysteria2"
+	var settings map[string]any
+	_ = json.Unmarshal([]byte(inbound.Settings), &settings)
+	if v, ok := settings["version"].(float64); ok && int(v) == 1 {
+		proxyType = "hysteria"
+	}
+
+	proxy := map[string]any{
+		"name":     s.SubService.genRemark(inbound, client.Email, extraRemark),
+		"type":     proxyType,
+		"server":   inbound.Listen,
+		"port":     inbound.Port,
+		"password": client.Auth,
+	}
+
+	if tls, ok := stream["tlsSettings"].(map[string]any); ok && tls != nil {
+		if sni, ok := tls["serverName"].(string); ok && sni != "" {
+			proxy["sni"] = sni
+		}
+		if alpn, ok := tls["alpn"].([]any); ok && len(alpn) > 0 {
+			alpns := make([]string, 0, len(alpn))
+			for _, a := range alpn {
+				if s, ok := a.(string); ok {
+					alpns = append(alpns, s)
+				}
+			}
+			if len(alpns) > 0 {
+				proxy["alpn"] = alpns
+			}
+		}
+		if inner, ok := tls["settings"].(map[string]any); ok {
+			if insecure, ok := inner["allowInsecure"].(bool); ok && insecure {
+				proxy["skip-cert-verify"] = true
+			}
+			if fp, ok := inner["fingerprint"].(string); ok && fp != "" {
+				proxy["client-fingerprint"] = fp
+			}
+		}
+	}
+
+	if finalmask, ok := stream["finalmask"].(map[string]any); ok && finalmask != nil {
+		// Salamander UDP obfuscation: type="salamander" entry in finalmask.udp
+		if udps, ok := finalmask["udp"].([]any); ok {
+			for _, u := range udps {
+				um, _ := u.(map[string]any)
+				if t, _ := um["type"].(string); t == "salamander" {
+					proxy["obfs"] = "salamander"
+					if s, ok := um["settings"].(map[string]any); ok {
+						if pwd, ok := s["password"].(string); ok && pwd != "" {
+							proxy["obfs-password"] = pwd
+						}
+					}
+					break
+				}
+			}
+		}
+		// Brutal bandwidth: finalmask.quicParams.brutalUp / brutalDown
+		if qp, ok := finalmask["quicParams"].(map[string]any); ok && qp != nil {
+			if up, ok := qp["brutalUp"].(string); ok && up != "" {
+				proxy["up"] = up
+			}
+			if down, ok := qp["brutalDown"].(string); ok && down != "" {
+				proxy["down"] = down
+			}
+		}
 	}
 
 	return proxy
