@@ -1521,6 +1521,8 @@ func (s *InboundService) SetClientTelegramUserID(trafficId int, tgId int64) (boo
 				clientId = oldClient.Password
 			case "shadowsocks":
 				clientId = oldClient.Email
+			case "hysteria":
+				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
 			}
@@ -1688,6 +1690,8 @@ func (s *InboundService) ResetClientIpLimitByEmail(clientEmail string, count int
 				clientId = oldClient.Password
 			case "shadowsocks":
 				clientId = oldClient.Email
+			case "hysteria":
+				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
 			}
@@ -1746,6 +1750,8 @@ func (s *InboundService) ResetClientExpiryTimeByEmail(clientEmail string, expiry
 			case "trojan":
 				clientId = oldClient.Password
 			case "shadowsocks":
+				clientId = oldClient.Email
+			case "hysteria":
 				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
@@ -1808,6 +1814,8 @@ func (s *InboundService) ResetClientTrafficLimitByEmail(clientEmail string, tota
 			case "trojan":
 				clientId = oldClient.Password
 			case "shadowsocks":
+				clientId = oldClient.Email
+			case "hysteria":
 				clientId = oldClient.Email
 			default:
 				clientId = oldClient.ID
