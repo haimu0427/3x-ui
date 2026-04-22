@@ -257,4 +257,93 @@
     </a-form>
   </template>
 </a-form>
+
+<!-- QUIC params (Hysteria only; maps to streamSettings.finalmask.quicParams) -->
+<a-form
+  :colon="false"
+  :label-col="{ md: {span:8} }"
+  :wrapper-col="{ md: {span:14} }"
+  v-if="inbound.protocol == Protocols.HYSTERIA"
+>
+  <a-divider :style="{ margin: '5px 0 0' }">QUIC Params</a-divider>
+  <a-form-item label='{{ i18n "pages.inbounds.hysteria.congestion" }}'>
+    <a-select
+      v-model="inbound.stream.finalmask.quicParams.congestion"
+      :dropdown-class-name="themeSwitcher.currentTheme"
+    >
+      <a-select-option value="">Default</a-select-option>
+      <a-select-option value="bbr">BBR</a-select-option>
+      <a-select-option value="reno">Reno</a-select-option>
+      <a-select-option value="brutal">Brutal</a-select-option>
+      <a-select-option value="force-brutal">Force-Brutal</a-select-option>
+    </a-select>
+  </a-form-item>
+  <template
+    v-if="['brutal', 'force-brutal'].includes(inbound.stream.finalmask.quicParams.congestion)"
+  >
+    <a-form-item label='{{ i18n "pages.inbounds.hysteria.brutalUp" }}'>
+      <a-input
+        v-model.trim="inbound.stream.finalmask.quicParams.brutalUp"
+        placeholder="100mbps"
+      ></a-input>
+    </a-form-item>
+    <a-form-item label='{{ i18n "pages.inbounds.hysteria.brutalDown" }}'>
+      <a-input
+        v-model.trim="inbound.stream.finalmask.quicParams.brutalDown"
+        placeholder="200mbps"
+      ></a-input>
+    </a-form-item>
+  </template>
+  <a-collapse>
+    <a-collapse-panel header='{{ i18n "pages.inbounds.hysteria.quicAdvanced" }}'>
+      <a-form-item label="Init Stream Receive Window">
+        <a-input-number
+          v-model.number="inbound.stream.finalmask.quicParams.initStreamReceiveWindow"
+          :min="0"
+        ></a-input-number>
+      </a-form-item>
+      <a-form-item label="Max Stream Receive Window">
+        <a-input-number
+          v-model.number="inbound.stream.finalmask.quicParams.maxStreamReceiveWindow"
+          :min="0"
+        ></a-input-number>
+      </a-form-item>
+      <a-form-item label="Init Connection Receive Window">
+        <a-input-number
+          v-model.number="inbound.stream.finalmask.quicParams.initConnectionReceiveWindow"
+          :min="0"
+        ></a-input-number>
+      </a-form-item>
+      <a-form-item label="Max Connection Receive Window">
+        <a-input-number
+          v-model.number="inbound.stream.finalmask.quicParams.maxConnectionReceiveWindow"
+          :min="0"
+        ></a-input-number>
+      </a-form-item>
+      <a-form-item label="Max Idle Timeout (s)">
+        <a-input-number
+          v-model.number="inbound.stream.finalmask.quicParams.maxIdleTimeout"
+          :min="0"
+        ></a-input-number>
+      </a-form-item>
+      <a-form-item label="Keep Alive Period (s)">
+        <a-input-number
+          v-model.number="inbound.stream.finalmask.quicParams.keepAlivePeriod"
+          :min="0"
+        ></a-input-number>
+      </a-form-item>
+      <a-form-item label="Max Incoming Streams">
+        <a-input-number
+          v-model.number="inbound.stream.finalmask.quicParams.maxIncomingStreams"
+          :min="0"
+        ></a-input-number>
+      </a-form-item>
+      <a-form-item label="Disable Path MTU Discovery">
+        <a-switch
+          v-model="inbound.stream.finalmask.quicParams.disablePathMTUDiscovery"
+        ></a-switch>
+      </a-form-item>
+    </a-collapse-panel>
+  </a-collapse>
+</a-form>
 {{end}}

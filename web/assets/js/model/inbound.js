@@ -1111,19 +1111,103 @@ class UdpMask extends XrayCommonClass {
     }
 }
 
-class FinalMaskStreamSettings extends XrayCommonClass {
-    constructor(udp = []) {
+class QuicParamsStreamSettings extends XrayCommonClass {
+    constructor(
+        congestion = '',
+        brutalUp = '',
+        brutalDown = '',
+        initStreamReceiveWindow = 0,
+        maxStreamReceiveWindow = 0,
+        initConnectionReceiveWindow = 0,
+        maxConnectionReceiveWindow = 0,
+        maxIdleTimeout = 0,
+        keepAlivePeriod = 0,
+        maxIncomingStreams = 0,
+        disablePathMTUDiscovery = false,
+    ) {
         super();
-        this.udp = Array.isArray(udp) ? udp.map(u => new UdpMask(u.type, u.settings)) : [new UdpMask(udp.type, udp.settings)];
+        this.congestion = congestion;
+        this.brutalUp = brutalUp;
+        this.brutalDown = brutalDown;
+        this.initStreamReceiveWindow = initStreamReceiveWindow;
+        this.maxStreamReceiveWindow = maxStreamReceiveWindow;
+        this.initConnectionReceiveWindow = initConnectionReceiveWindow;
+        this.maxConnectionReceiveWindow = maxConnectionReceiveWindow;
+        this.maxIdleTimeout = maxIdleTimeout;
+        this.keepAlivePeriod = keepAlivePeriod;
+        this.maxIncomingStreams = maxIncomingStreams;
+        this.disablePathMTUDiscovery = disablePathMTUDiscovery;
     }
 
     static fromJson(json = {}) {
-        return new FinalMaskStreamSettings(json.udp || []);
+        if (!json) json = {};
+        return new QuicParamsStreamSettings(
+            json.congestion ?? '',
+            json.brutalUp ?? '',
+            json.brutalDown ?? '',
+            json.initStreamReceiveWindow ?? 0,
+            json.maxStreamReceiveWindow ?? 0,
+            json.initConnectionReceiveWindow ?? 0,
+            json.maxConnectionReceiveWindow ?? 0,
+            json.maxIdleTimeout ?? 0,
+            json.keepAlivePeriod ?? 0,
+            json.maxIncomingStreams ?? 0,
+            !!json.disablePathMTUDiscovery,
+        );
+    }
+
+    // hasCustomParams returns true when any field diverges from Xray defaults
+    // (empty string / zero / false). When false the whole quicParams block is
+    // omitted so Xray uses its own defaults.
+    get hasCustomParams() {
+        return this.congestion !== ''
+            || this.brutalUp !== '' || this.brutalDown !== ''
+            || this.initStreamReceiveWindow > 0 || this.maxStreamReceiveWindow > 0
+            || this.initConnectionReceiveWindow > 0 || this.maxConnectionReceiveWindow > 0
+            || this.maxIdleTimeout > 0 || this.keepAlivePeriod > 0
+            || this.maxIncomingStreams > 0
+            || this.disablePathMTUDiscovery === true;
     }
 
     toJson() {
         return {
-            udp: this.udp.map(udp => udp.toJson())
+            congestion: this.congestion || undefined,
+            brutalUp: this.brutalUp || undefined,
+            brutalDown: this.brutalDown || undefined,
+            initStreamReceiveWindow: this.initStreamReceiveWindow || undefined,
+            maxStreamReceiveWindow: this.maxStreamReceiveWindow || undefined,
+            initConnectionReceiveWindow: this.initConnectionReceiveWindow || undefined,
+            maxConnectionReceiveWindow: this.maxConnectionReceiveWindow || undefined,
+            maxIdleTimeout: this.maxIdleTimeout || undefined,
+            keepAlivePeriod: this.keepAlivePeriod || undefined,
+            maxIncomingStreams: this.maxIncomingStreams || undefined,
+            disablePathMTUDiscovery: this.disablePathMTUDiscovery || undefined,
+        };
+    }
+}
+
+class FinalMaskStreamSettings extends XrayCommonClass {
+    constructor(udp = [], quicParams = new QuicParamsStreamSettings()) {
+        super();
+        this.udp = Array.isArray(udp) ? udp.map(u => new UdpMask(u.type, u.settings)) : [new UdpMask(udp.type, udp.settings)];
+        this.quicParams = quicParams;
+    }
+
+    static fromJson(json = {}) {
+        return new FinalMaskStreamSettings(
+            json.udp || [],
+            QuicParamsStreamSettings.fromJson(json.quicParams),
+        );
+    }
+
+    get hasQuicParams() {
+        return this.quicParams && this.quicParams.hasCustomParams;
+    }
+
+    toJson() {
+        return {
+            udp: this.udp.length > 0 ? this.udp.map(udp => udp.toJson()) : undefined,
+            quicParams: this.hasQuicParams ? this.quicParams.toJson() : undefined,
         };
     }
 }
@@ -1172,7 +1256,8 @@ class StreamSettings extends XrayCommonClass {
     }
 
     get hasFinalMask() {
-        return this.finalmask.udp && this.finalmask.udp.length > 0;
+        return (this.finalmask.udp && this.finalmask.udp.length > 0)
+            || this.finalmask.hasQuicParams;
     }
 
     get isTls() {
