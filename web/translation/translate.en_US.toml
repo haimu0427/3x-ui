@@ -316,6 +316,12 @@
 "monthly" = "Monthly"
 "hourly" = "Hourly"
 
+[pages.inbounds.hysteria]
+"congestion" = "Congestion Control"
+"brutalUp" = "Brutal Upload (Bandwidth)"
+"brutalDown" = "Brutal Download (Bandwidth)"
+"quicAdvanced" = "QUIC Advanced Tuning"
+
 [pages.inbounds.toasts]
 "obtain" = "Obtain"
 "updateSuccess" = "The update was successful."

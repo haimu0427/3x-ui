@@ -316,6 +316,12 @@
 "monthly" = "每月"
 "hourly" = "每小时"
 
+[pages.inbounds.hysteria]
+"congestion" = "拥塞控制"
+"brutalUp" = "Brutal 上行 (Bandwidth)"
+"brutalDown" = "Brutal 下行 (Bandwidth)"
+"quicAdvanced" = "QUIC 高级调优"
+
 [pages.inbounds.toasts]
 "obtain" = "获取"
 "updateSuccess" = "更新成功"
