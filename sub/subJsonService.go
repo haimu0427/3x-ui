@@ -436,7 +436,11 @@ func (s *SubJsonService) genHy(inbound *model.Inbound, newStream map[string]any,
 	}
 	newStream["hysteriaSettings"] = outHyStream
 
-	if finalmask, ok := hyStream["finalmask"].(map[string]any); ok {
+	// finalmask lives at streamSettings.finalmask (sibling of hysteriaSettings),
+	// not nested inside hysteriaSettings. Pass it through so the client
+	// inherits UDP masks and QUIC params (congestion / brutal / receive
+	// windows) configured on the inbound.
+	if finalmask, ok := stream["finalmask"].(map[string]any); ok {
 		newStream["finalmask"] = finalmask
 	}
 
